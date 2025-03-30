@@ -1,0 +1,11 @@
+theme = flexoki-dark
+
+window-theme = dark
+window-padding-x = 0
+window-padding-y = 0
+font-size = 14
+font-family = JetBrainsMono Nerd Font Mono
+
+cursor-style = block
+cursor-style-blink = false
+shell-integration-features = no-cursor

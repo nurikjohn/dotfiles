@@ -1,0 +1,35 @@
+#!/bin/bash
+
+# Get paths from Include lines in ssh config
+included=$(awk '/^Include / {print $2}' ~/.ssh/config | sed "s#~#$HOME#")
+
+# Add the main config to the list
+config_files="$HOME/.ssh/config"
+
+# Expand globs (e.g., ~/.ssh/config.d/*) and collect all real files
+for path in $included; do
+  config_files="$config_files $(find $path -type f 2>/dev/null)"
+done
+
+# Now parse all found configs
+selected=$(grep -h '^Host ' $config_files | grep -v '\*' | awk '{print $2}' | sort -u | fzf)
+
+if [[ -z $selected ]]; then
+    exit 0
+fi
+
+# Determine the command to run
+if [[ "$selected" == *sftp* ]]; then
+    cmd="sftp \"$selected\""
+else
+    cmd="ssh \"$selected\""
+fi
+
+# Check if we're in a tmux session
+if [[ -n "$TMUX" ]]; then
+    # We're in tmux, create a new window and run the command
+    tmux new-window -n "$selected" "$cmd"
+else
+    # We're not in tmux, create a new session and run the command
+    tmux new-session -d -s "ssh-$(date +%s)" -n "$selected" "$cmd" \; attach-session
+fi

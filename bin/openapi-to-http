@@ -1,0 +1,191 @@
+#!/usr/bin/env bash
+
+# Script to generate HTTP files from OpenAPI specification
+# Usage: ./openapi-to-http <output-directory> <openapi-url>
+
+set -e
+
+OUTPUT_DIR=${1:-"."}
+OPENAPI_URL=${2:-"http://localhost:3000/api/docs-json"}
+TEMP_FILE="openapi-spec.json"
+
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[0;33m'
+NC='\033[0m' 
+
+function show_usage {
+    echo -e "Usage: $0 [output-directory] [openapi-url]"
+    echo -e "\nOptions:"
+    echo -e "  output-directory  Directory to save the HTTP files (default: current directory)"
+    echo -e "  openapi-url       URL to the OpenAPI specification (default: http://localhost:3000/api/docs-json)"
+    echo -e "\nExample:"
+    echo -e "  $0 ./http-files http://localhost:3000/api/docs-json"
+}
+
+function download_spec {
+    echo -e "${YELLOW}Downloading OpenAPI specification from $OPENAPI_URL...${NC}"
+
+    if ! command -v curl &> /dev/null; then
+        echo -e "${RED}Error: curl is not installed. Please install curl and try again.${NC}"
+        exit 1
+    fi
+
+    HTTP_STATUS=$(curl -s -o "$TEMP_FILE" -w "%{http_code}" "$OPENAPI_URL")
+
+    if [ "$HTTP_STATUS" -ne 200 ]; then
+        echo -e "${RED}Error: Failed to download OpenAPI specification. HTTP status: $HTTP_STATUS${NC}"
+        echo -e "${YELLOW}The API might require authentication. Please download the spec manually and save it as $TEMP_FILE${NC}"
+        exit 1
+    fi
+
+    if ! /usr/bin/jq empty "$TEMP_FILE" 2>/dev/null; then
+        echo -e "${RED}Error: Downloaded file is not valid JSON${NC}"
+        exit 1
+    fi
+
+    echo -e "${GREEN}OpenAPI specification downloaded successfully${NC}"
+}
+
+function create_env_files {
+    echo -e "${YELLOW}Creating environment files...${NC}"
+
+    cat > "$OUTPUT_DIR/.env" << EOF
+    API_URL=http://localhost:3000
+    EOF
+
+    cat > "$OUTPUT_DIR/http-client.env.json" << EOF
+    {
+        "development": {
+            "API_URL": "http://localhost:3000"
+        },
+        "production": {
+            "API_URL": "https://api.example.com"
+        }
+    }
+EOF
+
+echo -e "${GREEN}Environment files created successfully${NC}"
+}
+
+function generate_http_files {
+    echo -e "${YELLOW}Generating HTTP files from OpenAPI specification...${NC}"
+
+    if ! command -v /usr/bin/jq &> /dev/null; then
+        echo -e "${RED}Error: jq is not installed. Please install jq and try again.${NC}"
+        exit 1
+    fi
+
+    TAGS=$(/usr/bin/jq -r '.paths | .. | .tags? | select(. != null) | .[]' "$TEMP_FILE" | sort | uniq)
+
+    if [ -z "$TAGS" ]; then
+        echo -e "${RED}Error: No tags found in the OpenAPI specification${NC}"
+        exit 1
+    fi
+
+    echo -e "${YELLOW}Found tags: $TAGS${NC}"
+
+    for TAG in $TAGS; do
+        echo -e "${YELLOW}Processing tag: $TAG${NC}"
+
+        HTTP_FILE="$OUTPUT_DIR/$TAG.http"
+
+        echo "" > "$HTTP_FILE"
+
+        PATHS=$(/usr/bin/jq -r --arg TAG "$TAG" '.paths | to_entries[] | select(.value | .. | .tags? | select(. != null) | contains([$TAG])) | .key' "$TEMP_FILE")
+
+        for PATH in $PATHS; do
+            METHODS=$(/usr/bin/jq -r --arg PATH "$PATH" --arg TAG "$TAG" '.paths[$PATH] | to_entries[] | select(.value.tags | contains([$TAG])) | .key' "$TEMP_FILE")
+
+            for METHOD in $METHODS; do
+                echo -e "${YELLOW}  Adding $METHOD $PATH${NC}"
+
+                OPERATION_ID=$(/usr/bin/jq -r --arg PATH "$PATH" --arg METHOD "$METHOD" '.paths[$PATH][$METHOD].operationId' "$TEMP_FILE")
+
+                echo "###" >> "$HTTP_FILE"
+                echo "# @name ${OPERATION_ID:-${METHOD}_${PATH//\//_}}" >> "$HTTP_FILE"
+
+                METHOD_UPPER=$(echo "$METHOD" | /usr/bin/tr '[:lower:]' '[:upper:]')                
+                if [[ "$PATH" == *"{}"* ]]; then
+                    FORMATTED_PATH=$(echo "$PATH" | /usr/bin/sed -E 's/\{([^}]+)\}/{{create_\1.response.body.data._id}}/g')
+                else
+                    FORMATTED_PATH="$PATH"
+                fi
+
+                echo "$METHOD_UPPER {{API_URL}}$FORMATTED_PATH" >> "$HTTP_FILE"
+
+                if [[ "$METHOD_UPPER" == "GET" || "$METHOD_UPPER" == "DELETE" ]]; then
+                    if /usr/bin/jq -e --arg PATH "$PATH" --arg METHOD "$METHOD" '.paths[$PATH][$METHOD].security != null' "$TEMP_FILE" > /dev/null; then
+                        echo "authorization: Bearer {{login.response.body.data.access_token}}" >> "$HTTP_FILE"
+                    fi
+                    echo "accept-language: en" >> "$HTTP_FILE"
+                else
+                    echo "content-type: application/json" >> "$HTTP_FILE"
+                    if /usr/bin/jq -e --arg PATH "$PATH" --arg METHOD "$METHOD" '.paths[$PATH][$METHOD].security != null' "$TEMP_FILE" > /dev/null; then
+                        echo "authorization: Bearer {{login.response.body.data.access_token}}" >> "$HTTP_FILE"
+                    fi
+                    echo "accept-language: en" >> "$HTTP_FILE"
+                    echo "" >> "$HTTP_FILE"
+
+                    if /usr/bin/jq -e --arg PATH "$PATH" --arg METHOD "$METHOD" '.paths[$PATH][$METHOD].requestBody != null' "$TEMP_FILE" > /dev/null; then
+                        SCHEMA_REF=$(/usr/bin/jq -r --arg PATH "$PATH" --arg METHOD "$METHOD" '.paths[$PATH][$METHOD].requestBody.content["application/json"].schema["$ref"]' "$TEMP_FILE" | /usr/bin/sed 's/^#\/components\/schemas\///')
+
+                        if [ "$SCHEMA_REF" != "null" ]; then
+                            echo "{" >> "$HTTP_FILE"
+
+                            PROPERTIES=$(/usr/bin/jq -r --arg SCHEMA "$SCHEMA_REF" '.components.schemas[$SCHEMA].properties | keys[]' "$TEMP_FILE" 2>/dev/null)
+
+                            for PROP in $PROPERTIES; do
+                                PROP_TYPE=$(/usr/bin/jq -r --arg SCHEMA "$SCHEMA_REF" --arg PROP "$PROP" '.components.schemas[$SCHEMA].properties[$PROP].type' "$TEMP_FILE")
+
+                                if [ "$PROP_TYPE" == "string" ]; then
+                                    echo "    \"$PROP\": \"example_$PROP\"," >> "$HTTP_FILE"
+                                elif [ "$PROP_TYPE" == "number" ] || [ "$PROP_TYPE" == "integer" ]; then
+                                    echo "    \"$PROP\": 123," >> "$HTTP_FILE"
+                                elif [ "$PROP_TYPE" == "boolean" ]; then
+                                    echo "    \"$PROP\": true," >> "$HTTP_FILE"
+                                elif [ "$PROP_TYPE" == "object" ]; then
+                                    echo "    \"$PROP\": {}," >> "$HTTP_FILE"
+                                elif [ "$PROP_TYPE" == "array" ]; then
+                                    echo "    \"$PROP\": []," >> "$HTTP_FILE"
+                                else
+                                    echo "    \"$PROP\": null," >> "$HTTP_FILE"
+                                fi
+                            done
+
+                            /usr/bin/sed -i.bak '$ s/,$//' "$HTTP_FILE" && /bin/rm -f "$HTTP_FILE.bak"
+
+                            echo "}" >> "$HTTP_FILE"
+                        else
+                            echo "{}" >> "$HTTP_FILE"
+                        fi
+                    else
+                        echo "{}" >> "$HTTP_FILE"
+                    fi
+                fi
+
+                echo "" >> "$HTTP_FILE"
+            done
+        done
+
+        echo -e "${GREEN}Created $HTTP_FILE${NC}"
+    done
+
+    echo -e "${GREEN}HTTP files generated successfully${NC}"
+}
+
+echo -e "${YELLOW}Starting HTTP files generation...${NC}"
+
+mkdir -p "$OUTPUT_DIR"
+
+download_spec
+
+create_env_files
+
+generate_http_files
+
+/bin/rm -f "$TEMP_FILE"
+
+echo -e "${GREEN}HTTP files generation completed successfully!${NC}"
+echo -e "${YELLOW}Files are available in: $OUTPUT_DIR${NC}"
+

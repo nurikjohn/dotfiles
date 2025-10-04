@@ -1,0 +1,73 @@
+# Name: GitHub Light
+# Description: GitHub's light theme colors for tmux
+
+github_white="#ffffff"
+github_base_50="#f6f8fa"
+github_base_100="#eaeef2"
+github_base_200="#d0d7de"
+github_base_300="#afb8c1"
+github_base_400="#8c959f"
+github_base_500="#6e7781"
+github_base_600="#656d76"
+github_base_700="#424a53"
+github_base_800="#32383f"
+github_base_900="#24292f"
+github_base_950="#1c2128"
+github_black="#1f2328"
+
+github_red="#cf222e"
+github_yellow="#bf8700"
+github_green="#1a7f37"
+github_cyan="#0969da"
+github_blue="#0969da"
+github_purple="#8250df"
+github_magenta="#bf5af2"
+
+color_tx_1=$github_black
+color_tx_2=$github_base_500
+color_tx_3=$github_base_400
+color_bg_1=$github_white
+color_bg_2=$github_base_50
+color_ui_1=$github_base_100
+color_ui_2=$github_base_200
+color_ui_3=$github_base_300
+
+color_red=$github_red
+color_yellow=$github_yellow
+color_green=$github_green
+color_cyan=$github_cyan
+color_blue=$github_blue
+color_purple=$github_purple
+color_magenta=$github_magenta
+
+# status
+set -g status "on"
+set -g status-bg $color_bg_2
+set -g status-justify "left"
+set -g status-left-length "100"
+set -g status-right-length "100"
+
+# messages
+set -g message-style "fg=$color_tx_1,bg=$color_bg_2,align=centre"
+set -g message-command-style "fg=$color_tx_1,bg=$color_ui_2,align=centre"
+
+# panes
+set -g pane-border-style fg=$color_ui_2
+set -g pane-active-border-style fg=$color_blue
+
+# windows
+setw -g window-status-activity-style fg=$color_tx_1,bg=$color_bg_1,none
+setw -g window-status-separator ""
+setw -g window-status-style fg=$color_tx_1,bg=$color_bg_1,none
+
+# statusline
+set -g status-left "#{?client_prefix,#[fg=#$color_bg_1#,bg=#$color_red],#[fg=#$color_bg_1#,bg=#$color_blue]}  #S "
+set -g status-right "#[fg=#$github_black,bg=#$color_ui_3]  #{b:pane_current_path} #[fg=#$color_bg_1,bg=#$color_blue] %Y-%m-%d %H:%M "
+
+# window-status
+setw -g window-status-format "#[bg=#$color_bg_2,fg=#$color_tx_2] #I #W "
+setw -g window-status-current-format "#[bg=#$color_bg_1,fg=#$github_blue] #I #W "
+
+# Modes
+setw -g clock-mode-colour $color_blue
+setw -g mode-style fg=$github_white,bg=$color_blue,bold

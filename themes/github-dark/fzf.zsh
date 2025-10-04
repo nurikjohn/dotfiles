@@ -1,0 +1,12 @@
+export FZF_DEFAULT_OPTS="
+        --ansi
+        --tmux=center,50%
+        --pointer=' '
+        --prompt='  '
+        --info=hidden
+        --layout=reverse
+        --color=fg:#8b949e,bg:#0d1117,hl:#f0f6fc
+        --color=fg+:#e6edf3,bg+:#21262d,hl+:#ffffff
+        --color=border:#1f6feb,header:#f0f6fc,gutter:#0d1117
+        --color=spinner:#3fb950,info:#6e7681,separator:#30363d
+        --color=pointer:#1f6feb,marker:#da3633,prompt:#1f6feb"

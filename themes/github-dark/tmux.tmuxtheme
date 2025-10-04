@@ -1,0 +1,75 @@
+# Name: GitHub Dark
+# Description: GitHub's dark theme colors for tmux
+
+github_black="#0d1117"
+github_base_950="#161b22"
+github_base_900="#21262d"
+github_base_850="#30363d"
+github_base_800="#485058"
+github_base_700="#6e7681"
+github_base_600="#8b949e"
+github_base_500="#b1bac4"
+github_base_300="#e6edf3"
+github_base_200="#f0f6fc"
+github_base_100="#f6f8fa"
+github_base_50="#fafbfc"
+github_paper="#ffffff"
+
+github_red="#da3633"
+github_orange="#fd7d00"
+github_yellow="#e3b341"
+github_green="#3fb950"
+github_cyan="#1f6feb"
+github_blue="#57A6FF"
+github_purple="#8b5cf6"
+github_magenta="#db61a2"
+
+color_tx_1=$github_base_300
+color_tx_2=$github_base_600
+color_tx_3=$github_base_700
+color_bg_1=$github_black
+color_bg_2=$github_base_950
+color_ui_1=$github_base_900
+color_ui_2=$github_base_850
+color_ui_3=$github_base_800
+
+color_red=$github_red
+color_orange=$github_orange
+color_yellow=$github_yellow
+color_green=$github_green
+color_cyan=$github_cyan
+color_blue=$github_blue
+color_purple=$github_purple
+color_magenta=$github_magenta
+
+# status
+set -g status "on"
+set -g status-bg $color_bg_2
+set -g status-justify "left"
+set -g status-left-length "100"
+set -g status-right-length "100"
+
+# messages
+set -g message-style "fg=$color_tx_1,bg=$color_bg_2,align=centre"
+set -g message-command-style "fg=$color_tx_1,bg=$color_ui_2,align=centre"
+
+# panes
+set -g pane-border-style fg=$color_ui_2
+set -g pane-active-border-style fg=$color_blue
+
+# windows
+setw -g window-status-activity-style fg=$color_tx_1,bg=$color_bg_1,none
+setw -g window-status-separator ""
+setw -g window-status-style fg=$color_tx_1,bg=$color_bg_1,none
+
+# statusline
+set -g status-left "#{?client_prefix,#[fg=#$color_bg_1#,bg=#$color_red],#[fg=#$color_bg_1#,bg=#$color_blue]}  #S "
+set -g status-right "#[fg=#$github_paper,bg=#$color_ui_3]  #{b:pane_current_path} #[fg=#$color_bg_1,bg=#$color_blue] %Y-%m-%d %H:%M "
+
+# window-status
+setw -g window-status-format "#[bg=#$color_bg_2,fg=#$color_tx_2] #I #W "
+setw -g window-status-current-format "#[bg=#$color_bg_1,fg=#$github_blue] #I #W "
+
+# Modes
+setw -g clock-mode-colour $color_blue
+setw -g mode-style fg=$color_orange,bg=$color_tx_1,bold

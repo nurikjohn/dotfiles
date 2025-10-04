@@ -1,0 +1,42 @@
+gui:
+  nerdFontsVersion: "3"
+  showIcons: true
+  theme:
+    activeBorderColor:
+      - '#f47868'
+      - bold
+    inactiveBorderColor:
+      - '#6f6e69'
+    optionsTextColor:
+      - '#ff8c00'
+    selectedLineBgColor:
+      - '#282726'
+    cherryPickedCommitBgColor:
+      - '#343331'
+    cherryPickedCommitFgColor:
+      - '#f47868'
+    unstagedChangesColor:
+      - '#f47868'
+    defaultFgColor:
+      - '#cecdc3'
+    searchingActiveBorderColor:
+      - '#ff8c00'
+    menuBgColor:
+      - '#1c1b1a'
+    menuFgColor:
+      - '#cecdc3'
+    statusChangesColor:
+      - '#a4b675'
+    branchColor:
+      - '#ad8bc9'
+    diffAddedColor:
+      - '#a4b675'
+    diffRemovedColor:
+      - '#f47868'
+    diffModifiedColor:
+      - '#ff8c00'
+    stagedChangesColor:
+      - '#a4b675'
+
+  authorColors:
+    '*': '#ad8bc9'

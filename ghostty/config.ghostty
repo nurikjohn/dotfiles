@@ -1,11 +1,30 @@
-theme = flexoki-dark
+## custom-shader = ./shaders/tft.glsl
+## custom-shader = ./shaders/bettercrt.glsl
+## custom-shader = ./shaders/bloom.glsl
+## custom-shader = ./shaders/glitchy.glsl
 
-window-theme = dark
+# custom-shader = ./shaders/cursor-blaze.glsl
+
+auto-update-channel = tip
+custom-shader-animation = always
+
 window-padding-x = 0
 window-padding-y = 0
-font-size = 14
+font-size = 15
+
 font-family = JetBrainsMono Nerd Font Mono
 
 cursor-style = block
 cursor-style-blink = false
 shell-integration-features = no-cursor
+link-url = true
+macos-titlebar-proxy-icon = hidden
+quick-terminal-animation-duration = 0
+
+macos-icon = custom-style
+macos-icon-frame = plastic
+macos-icon-ghost-color = FFFFFF
+macos-icon-screen-color = 000000
+
+# Theme configuration is loaded from current-theme.conf
+config-file = ./current-theme.conf

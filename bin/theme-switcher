@@ -1,0 +1,134 @@
+#!/bin/bash
+
+CONFIG_DIR="$HOME/.config"
+THEMES_DIR="$CONFIG_DIR/themes"
+
+# Symlink paths
+NVIM_THEME_LINK="$CONFIG_DIR/nvim/lua/nurikjohn/current-theme.lua"
+TMUX_THEME_LINK="$CONFIG_DIR/tmux/current-theme.tmuxtheme"
+GHOSTTY_THEME_LINK="$CONFIG_DIR/ghostty/current-theme.conf"
+MASTER_THEME_LINK="$THEMES_DIR/.current"
+
+sanity_check() {
+    if ! command -v fzf &>/dev/null; then
+        echo "fzf is not installed. Please install it first."
+        exit 1
+    fi
+}
+
+get_themes_for_fzf() {
+    if [[ ! -d "$THEMES_DIR" ]]; then
+        echo "Error: themes directory not found at $THEMES_DIR"
+        exit 1
+    fi
+
+    local current_theme
+    current_theme=$(get_current_theme)
+
+    # Get all theme directories (excluding hidden files like .current and files like themes.json)
+    local themes
+    themes=$(find "$THEMES_DIR" -maxdepth 1 -type d -not -name ".*" -not -name "$(basename "$THEMES_DIR")" | xargs -I {} basename {} | sort)
+
+    while IFS= read -r theme; do
+        if [[ "$theme" == "$current_theme" ]]; then
+            echo "$theme *"
+        else
+            echo "$theme"
+        fi
+    done <<< "$themes"
+}
+
+get_current_theme() {
+    if [[ -L "$MASTER_THEME_LINK" ]]; then
+        basename "$(readlink "$MASTER_THEME_LINK")"
+    else
+        echo "unknown"
+    fi
+}
+
+reload_all_tmux() {
+    tmux list-panes -a -F '#{session_name}:#{window_index} #{pane_current_command}' | while read pane_info; do
+        local target=$(echo "$pane_info" | cut -d' ' -f1)
+        local command=$(echo "$pane_info" | cut -d' ' -f2-)
+
+        # Only send to shell processes
+        if [[ "$command" == "zsh" || "$command" == "bash" || "$command" == "-zsh" || "$command" == "-bash" ]]; then
+            tmux send-keys -t "$target" 'source ~/.zshrc' Enter
+        fi
+    done
+    echo "  ✓ Reloaded zsh config in shell panes only"
+}
+
+switch_theme() {
+    local theme_name="$1"
+    local theme_dir="$THEMES_DIR/$theme_name"
+
+    if [[ ! -d "$theme_dir" ]]; then
+        echo "Error: Theme '$theme_name' not found!"
+        exit 1
+    fi
+
+    echo "Switching to theme: $theme_name"
+
+    # Update master theme symlink
+    rm -f "$MASTER_THEME_LINK"
+    ln -sf "$theme_name" "$MASTER_THEME_LINK"
+
+    # Neovim theme is handled by the global theme symlink automatically
+    if [[ -f "$theme_dir/nvim.lua" ]]; then
+        echo "  ✓ Neovim theme updated"
+    else
+        echo "  ⚠ Neovim theme file not found for $theme_name"
+    fi
+
+    # Update Ghostty theme symlink
+    if [[ -f "$theme_dir/ghostty.conf" ]]; then
+        rm -f "$GHOSTTY_THEME_LINK"
+        ln -sf "../themes/$theme_name/ghostty.conf" "$GHOSTTY_THEME_LINK"
+        echo "  ✓ Ghostty theme updated"
+
+        # Reload Ghostty configuration using SIGUSR2
+        if command -v pkill >/dev/null 2>&1; then
+            pkill -SIGUSR2 ghostty 2>/dev/null
+        else
+            echo "  ⚠ Please reload Ghostty manually with Cmd+Shift+,"
+        fi
+    else
+        echo "  ⚠ Ghostty theme file not found for $theme_name"
+    fi
+
+    # Update Tmux theme symlink
+    if [[ -f "$theme_dir/tmux.tmuxtheme" ]]; then
+        rm -f "$TMUX_THEME_LINK"
+        ln -sf "../themes/$theme_name/tmux.tmuxtheme" "$TMUX_THEME_LINK"
+        echo "  ✓ Tmux theme updated"
+
+        # Reload tmux if running
+        if command -v tmux >/dev/null 2>&1 && tmux list-sessions >/dev/null 2>&1; then
+            tmux source-file "$CONFIG_DIR/tmux/tmux.conf" >/dev/null 2>&1
+        fi
+    else
+        echo "  ⚠ Tmux theme file not found for $theme_name"
+    fi
+}
+
+
+sanity_check
+
+# Main logic - similar to tmux-sessionizer and ssh-fzf
+if [[ $# -eq 1 ]]; then
+    selected="$1"
+else
+    selected=$(get_themes_for_fzf | fzf)
+fi
+
+if [[ -z $selected ]]; then
+    exit 0
+fi
+
+# Remove [CURRENT] prefix if present
+if [[ "$selected" =~ ^\[CURRENT\]\ (.+)$ ]]; then
+    selected="${BASH_REMATCH[1]}"
+fi
+
+switch_theme "$selected"

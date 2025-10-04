@@ -1,11 +1,10 @@
-
 if [[ -r "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh" ]]; then
   source "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh"
 fi
 
 export ZSH="$HOME/.oh-my-zsh"
 
-ZSH_THEME="ultima"
+ZSH_THEME="default"
 
 plugins=(
     git
@@ -51,18 +50,15 @@ alias leetcode="cd $HOME/Documents/learning/leetcode"
 alias downloads="cd $HOME/Downloads"
 
 alias n="nvim"
-alias c="clear"
 
 setopt histignorespace
 
-# bun completions
 [ -s "/Users/nurik/.bun/_bun" ] && source "/Users/nurik/.bun/_bun"
 
-# bun
 export BUN_INSTALL="$HOME/.bun"
 export PATH="$BUN_INSTALL/bin:$PATH"
 
-export NVM_DIR="$([ -z "${XDG_CONFIG_HOME-}" ] && printf %s "${HOME}/.nvm" || printf %s "${XDG_CONFIG_HOME}/nvm")"
+export NVM_DIR="$HOME/.nvm"
 [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh" # This loads nvm
 
 export DENO_INSTALL="/Users/nurik/.deno"
@@ -77,7 +73,10 @@ export PATH=$PATH:$HOME/.local/bin/
 
 bindkey '\t\t' autosuggest-accept
 
-bindkey -s ^f " tmux-sessionizer\n"
+bindkey -s ^f "tmux-sessionizer\n"
+bindkey -s ^s "ssh-fzf\n"
+bindkey -s ^g "lazygit\n"
+bindkey -s ^t "theme-switcher\n"
 
 test -e /Users/nurik/.iterm2_shell_integration.zsh && source /Users/nurik/.iterm2_shell_integration.zsh || true
 
@@ -86,3 +85,10 @@ if [ -f '/Users/nurik/Downloads/google-cloud-sdk/path.zsh.inc' ]; then . '/Users
 
 # The next line enables shell command completion for gcloud.
 if [ -f '/Users/nurik/Downloads/google-cloud-sdk/completion.zsh.inc' ]; then . '/Users/nurik/Downloads/google-cloud-sdk/completion.zsh.inc'; fi
+
+PATH=~/.console-ninja/.bin:$PATH
+
+export PATH=$HOME/development/flutter/bin:$PATH
+
+export XDG_CONFIG_HOME="$HOME/.config"
+

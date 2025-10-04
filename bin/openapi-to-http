@@ -7,6 +7,7 @@ set -e
 
 OUTPUT_DIR=${1:-"."}
 OPENAPI_URL=${2:-"http://localhost:3000/api/docs-json"}
+BASIC_AUTH=${3:-""}
 TEMP_FILE="openapi-spec.json"
 
 RED='\033[0;31m'
@@ -15,12 +16,14 @@ YELLOW='\033[0;33m'
 NC='\033[0m' 
 
 function show_usage {
-    echo -e "Usage: $0 [output-directory] [openapi-url]"
+    echo -e "Usage: $0 [output-directory] [openapi-url] [basic-auth]"
     echo -e "\nOptions:"
     echo -e "  output-directory  Directory to save the HTTP files (default: current directory)"
     echo -e "  openapi-url       URL to the OpenAPI specification (default: http://localhost:3000/api/docs-json)"
-    echo -e "\nExample:"
+    echo -e "  basic-auth        Basic auth credentials in format username:password (optional)"
+    echo -e "\nExamples:"
     echo -e "  $0 ./http-files http://localhost:3000/api/docs-json"
+    echo -e "  $0 ./http-files http://localhost:3000/api/docs-json admin:secret123"
 }
 
 function download_spec {
@@ -31,7 +34,11 @@ function download_spec {
         exit 1
     fi
 
-    HTTP_STATUS=$(curl -s -o "$TEMP_FILE" -w "%{http_code}" "$OPENAPI_URL")
+    if [ -n "$BASIC_AUTH" ]; then
+        HTTP_STATUS=$(curl -s -u "$BASIC_AUTH" -o "$TEMP_FILE" -w "%{http_code}" "$OPENAPI_URL")
+    else
+        HTTP_STATUS=$(curl -s -o "$TEMP_FILE" -w "%{http_code}" "$OPENAPI_URL")
+    fi
 
     if [ "$HTTP_STATUS" -ne 200 ]; then
         echo -e "${RED}Error: Failed to download OpenAPI specification. HTTP status: $HTTP_STATUS${NC}"

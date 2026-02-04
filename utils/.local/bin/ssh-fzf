@@ -1,0 +1,90 @@
+#!/bin/bash
+
+GCLOUD_CACHE_FILE="$HOME/.cache/ssh-fzf-gcloud-vms"
+GCLOUD_PROJECTS_FILE="$HOME/.ssh/config.d/.gcloud-projects"
+
+# Handle cache reset option
+if [[ "$1" == "--reset-cache" || "$1" == "-r" ]]; then
+    rm -f "$GCLOUD_CACHE_FILE"
+    echo "GCloud VM cache cleared."
+    exit 0
+fi
+
+# Add the main config to the list
+config_files="$HOME/.ssh/config"
+
+# Only include files from ~/.ssh/config.d/ (exclude hidden files)
+config_files="$config_files $(find ~/.ssh/config.d -type f ! -name '.*' 2>/dev/null)"
+
+# Get SSH hosts
+ssh_hosts=$(grep -h '^Host ' $config_files | grep -v '\*' | awk '{print "󰈤 " $2}' | sort -u)
+
+# Get GCloud VMs (with caching)
+get_gcloud_vms() {
+    # Skip if no projects file
+    if [[ ! -f "$GCLOUD_PROJECTS_FILE" ]]; then
+        return
+    fi
+    
+    mkdir -p "$(dirname "$GCLOUD_CACHE_FILE")"
+    
+    if [[ -f "$GCLOUD_CACHE_FILE" ]]; then
+        cat "$GCLOUD_CACHE_FILE"
+        return
+    fi
+    
+    # Read projects from config file (YAML-style: "  - project-id")
+    local result=""
+    while read -r project; do
+        while IFS=',' read -r name zone; do
+            zone_short=$(basename "$zone")
+            result+="\033[34m󱇶\033[0m $name $zone_short [$project]"$'\n'
+        done < <(gcloud compute instances list --project="$project" --format="csv[no-heading](name,zone)" 2>/dev/null </dev/null)
+    done < <(grep '^ *- ' "$GCLOUD_PROJECTS_FILE" | sed 's/^ *- //')
+    
+    # Only write cache if we got results
+    if [[ -n "$result" ]]; then
+        echo -n "$result" | tee "$GCLOUD_CACHE_FILE"
+    fi
+}
+
+gcloud_vms=$(get_gcloud_vms)
+
+# Combine and select
+selected=$(printf '%s\n%b' "$ssh_hosts" "$gcloud_vms" | fzf --ansi)
+
+if [[ -z $selected ]]; then
+    exit 0
+fi
+
+# Determine the command to run
+# GCloud entries have format: "󱇶 vm-name zone [project]"
+if [[ "$selected" == "󱇶 "* && "$selected" == *"["*"]" ]]; then
+    project=$(echo "$selected" | sed -n 's/.*\[\([^]]*\)\]$/\1/p')
+    vm_name=$(echo "$selected" | awk '{print $2}')
+    zone=$(echo "$selected" | awk '{print $3}')
+    cmd="gcloud compute ssh --zone \"$zone\" \"$vm_name\" --project \"$project\""
+    window_name="$vm_name"
+# Config file entries have format: "󰈤 hostname"
+elif [[ "$selected" == "󰈤 "* ]]; then
+    host="${selected#󰈤 }"
+    if [[ "$host" == *sftp* ]]; then
+        cmd="sftp \"$host\""
+    else
+        cmd="ssh \"$host\""
+    fi
+    window_name="$host"
+else
+    cmd="ssh \"$selected\""
+    window_name="$selected"
+fi
+
+# Check if we're in a tmux session
+if [[ -n "$TMUX" ]]; then
+    # We're in tmux, create a new window and run the command
+    tmux new-window -n "$window_name" "$cmd"
+else
+    # We're not in tmux, create a new session and run the command
+    tmux new-session -d -s "ssh-$(date +%s)" -n "$window_name" "$cmd" \; attach-session
+fi
+

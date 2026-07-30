@@ -119,7 +119,9 @@ link_dotfiles() {
   fi
   clear_stow_blockers
   echo "==> stow: ${STOW_PACKAGES[*]}"
-  stow --restow --verbose --target="$HOME" -- "${STOW_PACKAGES[@]}"
+  # No `--` before the package list: GNU Stow 2.4.1 does not treat it as an
+  # end-of-options marker, it swallows the names and exits 0 having done nothing.
+  stow --restow --verbose --target="$HOME" "${STOW_PACKAGES[@]}"
 }
 
 # ~/.config/ghostty/config belongs to Omarchy -- `omarchy font set` rewrites its

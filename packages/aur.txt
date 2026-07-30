@@ -1,0 +1,4 @@
+# AUR packages, one per line.
+# oh-my-zsh, powerlevel10k and the zsh plugins are not listed here: they are
+# git-cloned into $ZSH_CUSTOM by install.sh, because oh-my-zsh's plugins=(...)
+# array only resolves plugins from that directory.
